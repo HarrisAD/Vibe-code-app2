@@ -1,9 +1,9 @@
 import pygame
 import sys
-import os
 import math
 import random
-import time
+
+
 
 # Initialize Pygame
 pygame.init()
@@ -21,52 +21,11 @@ CYAN = (0, 255, 255)
 ORANGE = (255, 100, 0)
 YELLOW = (255, 255, 100)
 RED = (255, 50, 50)
-GREEN = (50, 255, 50)
 
 # Game States
 MENU = 0
 PLAYING = 1
 GAME_OVER = 2
-
-class Explosion:
-    def __init__(self, x, y, size):
-        self.x = x
-        self.y = y
-        self.size = size * 3  # Scale based on the object that exploded
-        self.radius = 0
-        self.max_radius = self.size
-        self.growth_rate = self.max_radius / 15  # Animation speed
-        self.alpha = 255  # Transparency value
-        self.fade_rate = 6  # How quickly the explosion fades
-        self.active = True
-    
-    def update(self):
-        # Grow the explosion radius
-        self.radius += self.growth_rate
-        
-        # Fade the explosion
-        if self.radius >= self.max_radius / 2:
-            self.alpha -= self.fade_rate
-            if self.alpha <= 0:
-                self.active = False
-        
-        return self.active
-    
-    def draw(self, screen):
-        # Create a surface with per-pixel alpha
-        surf = pygame.Surface((self.radius * 2, self.radius * 2), pygame.SRCALPHA)
-        
-        # Draw the explosion with the current alpha value
-        color = (255, 200, 50, self.alpha)  # Orange/yellow with transparency
-        pygame.draw.circle(surf, color, (self.radius, self.radius), self.radius)
-        
-        # Create a brighter inner circle
-        inner_radius = self.radius * 0.6
-        inner_color = (255, 255, 200, self.alpha)  # Brighter center
-        pygame.draw.circle(surf, inner_color, (self.radius, self.radius), inner_radius)
-        
-        # Draw onto the main screen
-        screen.blit(surf, (self.x - self.radius, self.y - self.radius))
 
 class Bullet:
     def __init__(self, x, y, angle, speed=10):
@@ -77,13 +36,9 @@ class Bullet:
         # Size
         self.radius = 3
         
-        # Convert angle to radians for movement calculation
+        # Movement
         self.angle = math.radians(angle)
         self.speed = speed
-        
-        # Calculate velocity components based on angle
-        # In Pygame, 0 degrees points up, 90 degrees points right
-        # So we need sin for x-component and -cos for y-component (since y increases downward)
         self.dx = math.sin(self.angle) * self.speed
         self.dy = -math.cos(self.angle) * self.speed
         
@@ -98,15 +53,8 @@ class Bullet:
     def create_bullet_image(self):
         # Create a simple circular bullet
         surface = pygame.Surface((self.radius * 2, self.radius * 2), pygame.SRCALPHA)
-        
-        # Draw a bright circle
-        bullet_color = YELLOW
-        pygame.draw.circle(surface, bullet_color, (self.radius, self.radius), self.radius)
-        
-        # Add a small white core for a glowing effect
-        core_color = WHITE
-        pygame.draw.circle(surface, core_color, (self.radius, self.radius), self.radius // 2)
-        
+        pygame.draw.circle(surface, YELLOW, (self.radius, self.radius), self.radius)
+        pygame.draw.circle(surface, WHITE, (self.radius, self.radius), self.radius // 2)
         return surface
     
     def update(self, screen_width, screen_height):
@@ -117,14 +65,11 @@ class Bullet:
         # Update the rect position
         self.rect.center = (self.x, self.y)
         
-        # Check if bullet is out of screen
-        if (self.x < -10 or self.x > screen_width + 10 or 
-            self.y < -10 or self.y > screen_height + 10):
-            return False
-        
-        # Check if bullet has exceeded its lifespan
+        # Check if bullet is out of screen or expired
         current_time = pygame.time.get_ticks()
-        if current_time - self.creation_time > self.lifespan:
+        if (self.x < -10 or self.x > screen_width + 10 or 
+            self.y < -10 or self.y > screen_height + 10 or
+            current_time - self.creation_time > self.lifespan):
             return False
         
         # Bullet is still active
@@ -147,8 +92,8 @@ class Player:
         
         # Movement
         self.speed = 5
-        self.dx = 0  # Horizontal velocity
-        self.dy = 0  # Vertical velocity
+        self.dx = 0
+        self.dy = 0
         
         # Create ship image
         self.original_image = self.create_ship_image()
@@ -161,33 +106,26 @@ class Player:
         
         # Thruster effect
         self.thruster_active = False
-        self.thruster_color = ORANGE
         
         # Shooting mechanics
         self.can_shoot = True
         self.shoot_cooldown = 250  # Milliseconds between shots
         self.last_shot_time = 0
         
-        # Health and lives system
+        # Lives system
         self.max_lives = 3
         self.lives = self.max_lives
         self.invulnerable = False
         self.invulnerable_time = 0
-        self.invulnerable_duration = 3000  # 3 seconds of invulnerability after hit
-        self.flash_interval = 150  # Flash the ship when invulnerable
+        self.invulnerable_duration = 3000
         self.visible = True
     
     def create_ship_image(self):
         # Create a triangle ship surface
         ship_surface = pygame.Surface((self.width, self.height), pygame.SRCALPHA)
-        
-        # Draw a triangle pointing upward
         points = [(self.width//2, 0), (0, self.height), (self.width, self.height)]
         pygame.draw.polygon(ship_surface, CYAN, points)
-        
-        # Add some details to make it look more like a ship
         pygame.draw.rect(ship_surface, ORANGE, (self.width//4, self.height-10, self.width//3, 5))
-        
         return ship_surface
     
     def handle_input(self):
@@ -236,31 +174,26 @@ class Player:
         current_time = pygame.time.get_ticks()
         if current_time - self.last_shot_time >= self.shoot_cooldown:
             self.can_shoot = True
-            
-        # Update invulnerability status
+        
+        # Update invulnerability
         if self.invulnerable:
             if current_time - self.invulnerable_time >= self.invulnerable_duration:
                 self.invulnerable = False
                 self.visible = True
             else:
                 # Flash the ship
-                if (current_time // self.flash_interval) % 2 == 0:
-                    self.visible = True
-                else:
-                    self.visible = False
+                self.visible = ((current_time // 150) % 2 == 0)
     
     def shoot(self):
         if not self.can_shoot:
             return None
         
-        # Calculate the bullet starting position (at the tip of the ship)
-        # The negative angle is needed because Pygame's rotation is clockwise
-        # while trigonometric functions expect counter-clockwise angles
+        # Calculate the bullet position and angle
         angle_rad = math.radians(-self.angle)
         bullet_x = self.x + math.sin(angle_rad) * self.height//2
         bullet_y = self.y - math.cos(angle_rad) * self.height//2
         
-        # Create a new bullet with the ship's angle
+        # Create a new bullet
         bullet = Bullet(bullet_x, bullet_y, -self.angle)
         
         # Reset the cooldown
@@ -272,7 +205,7 @@ class Player:
     def hit(self):
         # If player is already invulnerable, ignore the hit
         if self.invulnerable:
-            return False
+            return True
         
         # Reduce lives
         self.lives -= 1
@@ -285,25 +218,22 @@ class Player:
         return self.lives > 0
     
     def draw(self, screen):
-        # Only draw the ship if it's visible (for flashing effect)
+        # Only draw the ship if it's visible
         if self.visible:
             # Draw thruster if active
             if self.thruster_active:
-                # Calculate thruster position at bottom of ship
                 angle_rad = math.radians(self.angle)
                 thruster_x = self.x + math.sin(angle_rad) * self.height//2
                 thruster_y = self.y + math.cos(angle_rad) * self.height//2
-                
-                # Draw a simple triangle flame
                 thruster_size = 10
                 points = [
                     (thruster_x, thruster_y),
                     (thruster_x - thruster_size, thruster_y + thruster_size),
                     (thruster_x + thruster_size, thruster_y + thruster_size)
                 ]
-                pygame.draw.polygon(screen, self.thruster_color, points)
+                pygame.draw.polygon(screen, ORANGE, points)
             
-            # Draw the spaceship to the screen
+            # Draw the spaceship
             screen.blit(self.image, self.rect.topleft)
     
     def draw_lives(self, screen, x, y, spacing=30):
@@ -314,7 +244,6 @@ class Player:
             screen.blit(mini_ship, (x + i * spacing, y))
     
     def get_collision_radius(self):
-        # Return the collision radius for the ship
         return min(self.width, self.height) // 3
     
     def reset(self, x, y):
@@ -367,15 +296,14 @@ class Asteroid:
         surface = pygame.Surface((size, size), pygame.SRCALPHA)
         
         # Choose a color
-        color = (150, 150, 150)  # Grey color for asteroids
+        color = (150, 150, 150)  # Grey
         
-        # Create a somewhat irregular shape by defining several points around a circle
+        # Create an irregular shape
         num_points = random.randint(8, 12)
         points = []
         
         for i in range(num_points):
             angle = 2 * math.pi * i / num_points
-            # Add some randomness to the radius
             distance = self.radius * random.uniform(0.8, 1.2)
             point_x = self.radius + math.cos(angle) * distance
             point_y = self.radius + math.sin(angle) * distance
@@ -390,7 +318,7 @@ class Asteroid:
             crater_x = random.randint(int(size * 0.2), int(size * 0.8))
             crater_y = random.randint(int(size * 0.2), int(size * 0.8))
             crater_radius = random.randint(int(size * 0.05), int(size * 0.15))
-            crater_color = (100, 100, 100)  # Darker grey for craters
+            crater_color = (100, 100, 100)  # Darker grey
             pygame.draw.circle(surface, crater_color, (crater_x, crater_y), crater_radius)
         
         return surface
@@ -422,23 +350,18 @@ class Asteroid:
         screen.blit(self.image, self.rect.topleft)
     
     def get_collision_radius(self):
-        # Return a slightly smaller radius for collision detection
-        # to make the game a bit more forgiving
         return self.radius * 0.8
     
     def split(self):
         # When an asteroid is hit, it splits into smaller asteroids
-        # Returns a list of new smaller asteroids
         if self.size > 1:
             new_size = self.size - 1
             new_asteroids = []
             
             # Create 2 smaller asteroids
             for _ in range(2):
-                # Add some randomness to the position
                 offset_x = random.uniform(-10, 10)
                 offset_y = random.uniform(-10, 10)
-                
                 new_asteroid = Asteroid(self.x + offset_x, self.y + offset_y, new_size)
                 new_asteroids.append(new_asteroid)
             
@@ -464,31 +387,29 @@ class Game:
         # Game state
         self.state = MENU
         
-        # Create player spaceship in the center of the screen
+        # Create player spaceship
         self.player = Player(WINDOW_WIDTH // 2, WINDOW_HEIGHT // 2)
         
         # Create lists for game objects
         self.asteroids = []
         self.bullets = []
-        self.explosions = []
         
         # Asteroid spawning system
         self.asteroid_spawn_timer = 0
         self.asteroid_spawn_delay = 3000  # milliseconds between asteroid spawns
         
-        # Score and high score
+        # Score and level
         self.score = 0
         self.high_score = 0
         self.level = 1
         
-        # Set up grid for background (visual reference)
+        # Grid setting
         self.draw_grid = True
     
     def start_new_game(self):
         # Reset game objects and values
         self.asteroids = []
         self.bullets = []
-        self.explosions = []
         self.score = 0
         self.level = 1
         
@@ -506,9 +427,6 @@ class Game:
             self.spawn_asteroid_away_from_player()
     
     def spawn_asteroid_away_from_player(self):
-        # Spawn an asteroid at a random position, but not too close to the player
-        safe_distance = 150  # Minimum distance from player
-        
         # Choose a random spawn position at the edge of the screen
         side = random.randint(0, 3)  # 0: top, 1: right, 2: bottom, 3: left
         
@@ -538,11 +456,11 @@ class Game:
             
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
-                    # In menu or game over, exit. In game, return to menu
-                    if self.state == PLAYING:
-                        self.state = MENU
-                    else:
+                    # In menu, exit. In game or game over, return to menu
+                    if self.state == MENU:
                         self.running = False
+                    else:  # PLAYING or GAME_OVER
+                        self.state = MENU
                 
                 elif event.key == pygame.K_g:  # Toggle grid with G key
                     self.draw_grid = not self.draw_grid
@@ -553,14 +471,13 @@ class Game:
                         self.start_new_game()
                     elif self.state == PLAYING:
                         self.handle_shooting()
-    
+        
     def handle_shooting(self):
         # Handle player shooting
         bullet = self.player.shoot()
         if bullet:
             self.bullets.append(bullet)
-            # TODO: Add sound effect here
-
+    
     def update(self):
         if self.state == PLAYING:
             # Handle player input
@@ -571,23 +488,18 @@ class Game:
             if keys[pygame.K_SPACE]:
                 self.handle_shooting()
             
-            # Update player position
+            # Update player
             self.player.update(WINDOW_WIDTH, WINDOW_HEIGHT)
             
             # Update bullets
             for bullet in self.bullets[:]:
-                # If update returns False, the bullet is out of bounds or expired
                 if not bullet.update(WINDOW_WIDTH, WINDOW_HEIGHT):
-                    self.bullets.remove(bullet)
+                    if bullet in self.bullets:
+                        self.bullets.remove(bullet)
             
             # Update asteroids
             for asteroid in self.asteroids[:]:
                 asteroid.update(WINDOW_WIDTH, WINDOW_HEIGHT)
-            
-            # Update explosions
-            for explosion in self.explosions[:]:
-                if not explosion.update():
-                    self.explosions.remove(explosion)
             
             # Check for collisions
             self.check_collisions()
@@ -616,10 +528,6 @@ class Game:
                 
                 # Check if they're colliding
                 if distance < bullet.get_collision_radius() + asteroid.get_collision_radius():
-                    # Add explosion at the collision point
-                    explosion = Explosion(asteroid.x, asteroid.y, asteroid.size)
-                    self.explosions.append(explosion)
-                    
                     # Remove the bullet
                     if bullet in self.bullets:
                         self.bullets.remove(bullet)
@@ -654,10 +562,6 @@ class Game:
                 
                 # Check if they're colliding
                 if distance < player_radius + asteroid.get_collision_radius():
-                    # Add explosion at the player position
-                    explosion = Explosion(self.player.x, self.player.y, 3)
-                    self.explosions.append(explosion)
-                    
                     # Handle player being hit
                     still_alive = self.player.hit()
                     if not still_alive:
@@ -672,6 +576,9 @@ class Game:
                     # Remove the hit asteroid
                     if asteroid in self.asteroids:
                         self.asteroids.remove(asteroid)
+                    
+                    # Only process one collision at a time
+                    break
 
     def draw_background(self):
         # Fill with black background
@@ -695,6 +602,9 @@ class Game:
             self.draw_game()
         elif self.state == GAME_OVER:
             self.draw_game_over()
+        
+        # Update the display
+        pygame.display.flip()
     
     def draw_menu(self):
         # Draw title
@@ -725,10 +635,6 @@ class Game:
         for bullet in self.bullets:
             bullet.draw(self.screen)
         
-        # Draw explosions
-        for explosion in self.explosions:
-            explosion.draw(self.screen)
-        
         # Draw player
         self.player.draw(self.screen)
         
@@ -741,7 +647,7 @@ class Game:
         
         # Draw semi-transparent overlay
         overlay = pygame.Surface((WINDOW_WIDTH, WINDOW_HEIGHT), pygame.SRCALPHA)
-        overlay.fill((0, 0, 0, 180))  # Black with 70% opacity
+        overlay.fill((0, 0, 0, 180))  # Black with opacity
         self.screen.blit(overlay, (0, 0))
         
         # Draw Game Over text
@@ -763,7 +669,7 @@ class Game:
         restart_text = self.font_medium.render("Press SPACE to Restart", True, WHITE)
         self.screen.blit(restart_text, (WINDOW_WIDTH//2 - restart_text.get_width()//2, 400))
         
-        menu_text = self.font_medium.render("Press ESC to Main Menu", True, WHITE)
+        menu_text = self.font_medium.render("Press ESC for Main Menu", True, WHITE)
         self.screen.blit(menu_text, (WINDOW_WIDTH//2 - menu_text.get_width()//2, 450))
     
     def draw_hud(self):
@@ -783,3 +689,23 @@ class Game:
         # Draw controls reminder at the bottom
         controls_text = self.font_small.render("Arrow Keys: Move   A/D: Rotate   SPACE: Shoot   G: Grid   ESC: Menu", True, DARK_GRAY)
         self.screen.blit(controls_text, (WINDOW_WIDTH//2 - controls_text.get_width()//2, WINDOW_HEIGHT - 30))
+    
+    def run(self):
+        while self.running:
+            self.handle_events()
+            self.update()
+            self.draw()
+            self.clock.tick(FPS)
+
+        pygame.quit()
+        sys.exit()
+
+# Run the game
+if __name__ == "__main__":
+    try:
+        game = Game()
+        game.run()
+    except Exception as e:
+        print(f"Error: {e}")
+        pygame.quit()
+        sys.exit(1)
