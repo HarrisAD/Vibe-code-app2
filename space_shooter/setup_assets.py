@@ -1,28 +1,33 @@
 import os
 import pygame
+import math
+import random
 
 def create_directories():
     """Create the necessary directories for the game assets."""
     # Get the base directory
     base_dir = os.path.dirname(os.path.abspath(__file__))
     
-    # Create assets directory if it doesn't exist
-    assets_dir = os.path.join(base_dir, 'assets')
-    if not os.path.exists(assets_dir):
-        os.makedirs(assets_dir)
-        print(f"Created directory: {assets_dir}")
+    # Create static directory if it doesn't exist
+    static_dir = os.path.join(base_dir, 'static')
+    if not os.path.exists(static_dir):
+        os.makedirs(static_dir)
+        print(f"Created directory: {static_dir}")
     
-    return assets_dir
+    return static_dir
 
-def create_player_ship(assets_dir):
+def create_player_ship(static_dir):
     """Create a player ship image and save it to the assets directory."""
+    # Initialize Pygame
+    pygame.init()
+    
     # Set dimensions for the ship image
     width, height = 50, 50
     
     # Create a surface for the ship
     ship_surface = pygame.Surface((width, height), pygame.SRCALPHA)
     
-    # Ship body (main triangle)
+    # Ship body (triangle)
     ship_color = (120, 200, 255)  # Light blue
     points = [(width//2, 0), (0, height), (width, height)]
     pygame.draw.polygon(ship_surface, ship_color, points)
@@ -49,20 +54,80 @@ def create_player_ship(assets_dir):
                     (width//3, height-12, width//3, 7))
     
     # Save the image
-    ship_path = os.path.join(assets_dir, 'player_ship.png')
+    ship_path = os.path.join(static_dir, 'player_ship.png')
     pygame.image.save(ship_surface, ship_path)
     print(f"Created player ship image: {ship_path}")
 
+def create_asteroid(static_dir):
+    """Create an asteroid image and save it to the assets directory."""
+    # Set dimensions
+    size = 50
+    
+    # Create a surface for the asteroid
+    asteroid_surface = pygame.Surface((size, size), pygame.SRCALPHA)
+    
+    # Base color
+    base_color = (150, 150, 150)  # Grey
+    
+    # Create an irregular polygon
+    points = []
+    radius = size // 2
+    point_count = 10
+    
+    for i in range(point_count):
+        angle = (i / point_count) * (2 * 3.14159)  # Use radians
+        # Add some randomness to the radius
+        var_radius = radius * (0.8 + 0.4 * (i / point_count))
+        
+        x = radius + var_radius * math.cos(angle)
+        y = radius + var_radius * math.sin(angle)
+        points.append((x, y))
+    
+    # Draw the asteroid
+    pygame.draw.polygon(asteroid_surface, base_color, points)
+    
+    # Add some texture/craters
+    crater_color = (100, 100, 100)  # Darker grey
+    import random
+    for _ in range(3):
+        cx = random.randint(0, size)
+        cy = random.randint(0, size)
+        crater_radius = random.randint(2, 7)
+        pygame.draw.circle(asteroid_surface, crater_color, (cx, cy), crater_radius)
+    
+    # Save the image
+    asteroid_path = os.path.join(static_dir, 'asteroid.png')
+    pygame.image.save(asteroid_surface, asteroid_path)
+    print(f"Created asteroid image: {asteroid_path}")
+
+def create_bullet(static_dir):
+    """Create a bullet image and save it to the assets directory."""
+    # Create a surface for the bullet
+    bullet_surface = pygame.Surface((6, 6), pygame.SRCALPHA)
+    
+    # Draw a yellow circle
+    pygame.draw.circle(bullet_surface, (255, 255, 100), (3, 3), 3)
+    
+    # Add a white core for glow effect
+    pygame.draw.circle(bullet_surface, (255, 255, 255), (3, 3), 1)
+    
+    # Save the image
+    bullet_path = os.path.join(static_dir, 'bullet.png')
+    pygame.image.save(bullet_surface, bullet_path)
+    print(f"Created bullet image: {bullet_path}")
+
 def main():
     """Set up all game assets."""
-    # Initialize pygame to use its drawing functions
+    # Initialize pygame
     pygame.init()
     
     # Create directories
-    assets_dir = create_directories()
+    static_dir = create_directories()
     
     # Create assets
-    create_player_ship(assets_dir)
+    create_player_ship(static_dir)
+    create_asteroid(static_dir)
+    create_bullet(static_dir)
     
     # Cleanup
     pygame.quit()
